@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import User
 
+# admin.py is used to register models in the Django admin panel.
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):

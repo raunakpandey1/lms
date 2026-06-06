@@ -7,6 +7,7 @@ from .views import (
     MeView,
 )
 
+# .as_view() converts the class-based view into a callable view.
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
     path("login/", CustomTokenObtainPairView.as_view(), name="login"),

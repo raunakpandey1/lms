@@ -5,7 +5,7 @@ from .models import Course, Enrollment, Chapter
 
 class CourseSerializer(serializers.ModelSerializer):
     instructor_name = serializers.CharField(
-        source="instructor.username",
+        source="instructor.username", # Go to the course’s instructor object, then get its username.
         read_only=True,
     )
 
@@ -21,7 +21,7 @@ class CourseSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = (
+        read_only_fields = ( # can't be changed by frontend 
             "id",
             "instructor",
             "instructor_name",

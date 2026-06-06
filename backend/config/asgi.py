@@ -7,6 +7,7 @@ For more information on this file, see
 https://docs.djangoproject.com/en/4.2/howto/deployment/asgi/
 """
 
+# server entry point and used by deployment servers like uvicorn and used for async deployment.
 import os
 
 from django.core.asgi import get_asgi_application

@@ -10,7 +10,7 @@ class IsInstructorOrReadOnly(permissions.BasePermission):
     message = "Only instructors can create courses, and only course owners can modify them."
 
     def has_permission(self, request, view):
-        if request.method in permissions.SAFE_METHODS:
+        if request.method in permissions.SAFE_METHODS: # Safe mthods means read-only HTTP methods
             return request.user and request.user.is_authenticated
 
         return (
@@ -36,7 +36,7 @@ class IsStudent(permissions.BasePermission):
             and request.user.is_student
         )
 
-
+# It controls who can read, update, or delete chapter content.
 class IsCourseInstructorOrReadOnlyPublicChapter(permissions.BasePermission):
     """
     Object-level permission for chapter detail/update/delete.

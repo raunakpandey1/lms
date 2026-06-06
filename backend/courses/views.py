@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Q # Q is used for complex database filtering with OR conditions.
 from django.shortcuts import get_object_or_404
 
 from rest_framework import generics, status, viewsets
@@ -15,13 +15,13 @@ from .permissions import (
 )
 from .serializers import ChapterSerializer, CourseSerializer, EnrollmentSerializer
 
-
+# modelviewset handles CRUD API
 class CourseViewSet(viewsets.ModelViewSet):
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated, IsInstructorOrReadOnly]
 
     def get_queryset(self):
-        queryset = Course.objects.select_related("instructor").all()
+        queryset = Course.objects.select_related("instructor").all() # select_related("instructor") is an optimization. it helps avoid extra database queries when serializer needs:
 
         if self.request.user.is_student:
             return queryset.filter(is_published=True)
@@ -34,19 +34,20 @@ class CourseViewSet(viewsets.ModelViewSet):
         return Course.objects.none()
 
     def perform_create(self, serializer):
-        serializer.save(instructor=self.request.user)
+        serializer.save(instructor=self.request.user) # backend automatically sets currently logged-in user when course is created
 
-
+# APIView - You want full control and writing custom logic
 class JoinCourseView(APIView):
     permission_classes = [IsAuthenticated, IsStudent]
 
-    def post(self, request, pk):
+    def post(self, request, pk): # This method runs when a POST request is sent.
         course = get_object_or_404(
             Course,
             pk=pk,
             is_published=True,
         )
 
+        #creates a new enrollment if it does not exist
         enrollment, created = Enrollment.objects.get_or_create(
             student=request.user,
             course=course,
@@ -64,8 +65,10 @@ class JoinCourseView(APIView):
             serializer.data,
             status=status.HTTP_201_CREATED,
         )
-
-
+        
+        
+# this function returns courses joined by the logged-in student.
+# ListAPIView used as we only want to return a list of objects.
 class MyEnrolledCoursesView(generics.ListAPIView):
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated, IsStudent]
@@ -77,10 +80,10 @@ class MyEnrolledCoursesView(generics.ListAPIView):
                 enrollments__student=self.request.user,
                 is_published=True,
             )
-            .order_by("-enrollments__joined_at")
+            .order_by("-enrollments__joined_at") # most recently joined courses first.
         )
         
-
+# it can list and create chapters
 class ChapterListCreateView(generics.ListCreateAPIView):
     serializer_class = ChapterSerializer
     permission_classes = [IsAuthenticated]
@@ -135,7 +138,7 @@ class ChapterListCreateView(generics.ListCreateAPIView):
 
         serializer.save(course=course)
 
-
+# RetrieveUpdateDestroyAPIView - generic DRf view for one object
 class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ChapterSerializer
     permission_classes = [
@@ -173,3 +176,5 @@ class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
             )
 
         return Chapter.objects.none()
+    
+    

@@ -11,17 +11,20 @@ from .serializers import (
 
 User = get_user_model()
 
+# View handles the actual request and response.
 
+# user registration
+# generics.CreateAPIView used to create a new object.
 class RegisterView(generics.CreateAPIView):
-    queryset = User.objects.all()
-    serializer_class = RegisterSerializer
+    queryset = User.objects.all() # tells which model it works with
+    serializer_class = RegisterSerializer # which Serializer to validate and create the user.
     permission_classes = [AllowAny]
 
-
+# login/JWT token generation
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
-
+# get currently logged-in user profile
 class MeView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]

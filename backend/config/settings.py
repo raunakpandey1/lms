@@ -9,8 +9,9 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
-
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -22,6 +23,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = "django-insecure-^7fud9$1=tibf^4ikl)@tc)2ym10swnw=1mlv1g2w8m*w$dd$q"
 
+DEBUG = os.getenv("DEBUG", "True") == "True"
+
+ALLOWED_HOSTS = os.getenv(
+    "ALLOWED_HOSTS",
+    "localhost,127.0.0.1"
+).split(",")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
@@ -116,9 +123,9 @@ LANGUAGE_CODE = "en-us"
 
 TIME_ZONE = "UTC"
 
-USE_I18N = True
+USE_I18N = True # support multiple languages.
 
-USE_TZ = True
+USE_TZ = True # use timezone-aware datetime values.
 
 
 # Static files (CSS, JavaScript, Images)
@@ -132,9 +139,10 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-]
+CORS_ALLOWED_ORIGINS = os.getenv(
+    "CORS_ALLOWED_ORIGINS",
+    "http://localhost:5173"
+).split(",")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
@@ -146,4 +154,4 @@ REST_FRAMEWORK = {
 }
 
 
-AUTH_USER_MODEL = "accounts.User"
+AUTH_USER_MODEL = "accounts.User" # dont use default user..Use my custom user model from the accounts app.

@@ -10,7 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@platejs/basic-nodes": "^53.0.0",
     "axios": "^1.17.0",
+    "platejs": "^53.0.7",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-router-dom": "^7.17.0"

@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 
+# required as we know list and dictionaries are mutable so use this as default value
 def default_chapter_content():
     return [
         {
@@ -12,8 +13,8 @@ def default_chapter_content():
 class Course(models.Model):
     instructor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="courses_created",
+        on_delete=models.CASCADE, # If the instructor user is deleted, delete their courses too.
+        related_name="courses_created", # allows reverse access from user to courses.
     )
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -22,7 +23,7 @@ class Course(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-created_at"] #- means descending order
 
     def __str__(self):
         return self.title
@@ -55,7 +56,7 @@ class Enrollment(models.Model):
 class Chapter(models.Model):
     course = models.ForeignKey(
         Course,
-        on_delete=models.CASCADE,
+        on_delete=models.CASCADE, # If a course is deleted, delete its chapters too.
         related_name="chapters",
     )
     title = models.CharField(max_length=255)

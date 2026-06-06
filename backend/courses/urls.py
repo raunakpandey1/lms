@@ -8,6 +8,7 @@ from .views import (
     ChapterListCreateView
 )
 
+# A ViewSet contains multiple actions so we map http methods manualy
 course_list = CourseViewSet.as_view(
     {
         "get": "list",
