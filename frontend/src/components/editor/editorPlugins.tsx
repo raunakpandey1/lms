@@ -12,11 +12,16 @@ import {
 
 import {
   createPlatePlugin,
+  ParagraphPlugin,
   PlateElement,
   PlateLeaf,
   type PlateElementProps,
   type PlateLeafProps,
 } from "platejs/react";
+
+function ParagraphElement(props: PlateElementProps) {
+  return <PlateElement as="p" className="plate-paragraph" {...props} />;
+}
 
 function H1Element(props: PlateElementProps) {
   return <PlateElement as="h1" className="plate-heading h1" {...props} />;
@@ -59,12 +64,7 @@ function LinkElement({
 
   return (
     <PlateElement element={element} {...props}>
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className="plate-link"
-      >
+      <a href={href} target="_blank" rel="noreferrer" className="plate-link">
         {children}
       </a>
     </PlateElement>
@@ -128,6 +128,7 @@ export const SimpleCodeBlockPlugin = createPlatePlugin({
 }).withComponent(CodeBlockElement);
 
 export const lmsPlatePlugins = [
+  ParagraphPlugin.withComponent(ParagraphElement),
   BoldPlugin,
   ItalicPlugin,
   UnderlinePlugin,
