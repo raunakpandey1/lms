@@ -35,3 +35,32 @@ class IsStudent(permissions.BasePermission):
             and request.user.is_authenticated
             and request.user.is_student
         )
+
+
+class IsCourseInstructorOrReadOnlyPublicChapter(permissions.BasePermission):
+    """
+    Object-level permission for chapter detail/update/delete.
+
+    Instructor:
+    - Can read/update/delete chapters only for their own courses.
+
+    Student:
+    - Can read only public chapters.
+    - Cannot update/delete chapters.
+    """
+
+    message = "You do not have permission to access this chapter."
+
+    def has_object_permission(self, request, view, obj):
+        user = request.user
+
+        if not user or not user.is_authenticated:
+            return False
+
+        if user.is_instructor:
+            return obj.course.instructor == user
+
+        if user.is_student and request.method in permissions.SAFE_METHODS:
+            return obj.is_public
+
+        return False

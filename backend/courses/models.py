@@ -1,6 +1,13 @@
 from django.conf import settings
 from django.db import models
 
+def default_chapter_content():
+    return [
+        {
+            "type": "p",
+            "children": [{"text": ""}],
+        }
+    ]
 
 class Course(models.Model):
     instructor = models.ForeignKey(
@@ -44,3 +51,22 @@ class Enrollment(models.Model):
 
     def __str__(self):
         return f"{self.student.username} enrolled in {self.course.title}"
+    
+class Chapter(models.Model):
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name="chapters",
+    )
+    title = models.CharField(max_length=255)
+    content = models.JSONField(default=default_chapter_content, blank=True)
+    is_public = models.BooleanField(default=False)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "created_at"]
+
+    def __str__(self):
+        return f"{self.course.title} - {self.title}"

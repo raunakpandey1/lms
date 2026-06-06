@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Course, Enrollment
+from .models import Course, Enrollment, Chapter
 
 
 class CourseSerializer(serializers.ModelSerializer):
@@ -50,3 +50,38 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             "course",
             "joined_at",
         )
+        
+class ChapterSerializer(serializers.ModelSerializer):
+    course_title = serializers.CharField(
+        source="course.title",
+        read_only=True,
+    )
+
+    class Meta:
+        model = Chapter
+        fields = (
+            "id",
+            "course",
+            "course_title",
+            "title",
+            "content",
+            "is_public",
+            "order",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = (
+            "id",
+            "course",
+            "course_title",
+            "created_at",
+            "updated_at",
+        )
+
+    def validate_content(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError(
+                "Chapter content must be a list of Plate.js JSON nodes."
+            )
+
+        return value

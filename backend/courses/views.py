@@ -5,10 +5,15 @@ from rest_framework import generics, status, viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import PermissionDenied
 
-from .models import Course, Enrollment
-from .permissions import IsInstructorOrReadOnly, IsStudent
-from .serializers import CourseSerializer, EnrollmentSerializer
+from .models import Course, Enrollment, Chapter
+from .permissions import (
+    IsCourseInstructorOrReadOnlyPublicChapter,
+    IsInstructorOrReadOnly,
+    IsStudent,
+)
+from .serializers import ChapterSerializer, CourseSerializer, EnrollmentSerializer
 
 
 class CourseViewSet(viewsets.ModelViewSet):
@@ -74,3 +79,97 @@ class MyEnrolledCoursesView(generics.ListAPIView):
             )
             .order_by("-enrollments__joined_at")
         )
+        
+
+class ChapterListCreateView(generics.ListCreateAPIView):
+    serializer_class = ChapterSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_course(self):
+        return get_object_or_404(
+            Course.objects.select_related("instructor"),
+            pk=self.kwargs["course_id"],
+        )
+
+    def get_queryset(self):
+        course = self.get_course()
+        user = self.request.user
+
+        queryset = Chapter.objects.select_related(
+            "course",
+            "course__instructor",
+        ).filter(course=course)
+
+        if user.is_instructor:
+            if course.instructor == user:
+                return queryset
+
+            return queryset.filter(is_public=True, course__is_published=True)
+
+        if user.is_student:
+            is_enrolled = Enrollment.objects.filter(
+                student=user,
+                course=course,
+            ).exists()
+
+            if not is_enrolled:
+                return Chapter.objects.none()
+
+            return queryset.filter(
+                is_public=True,
+                course__is_published=True,
+            )
+
+        return Chapter.objects.none()
+
+    def perform_create(self, serializer):
+        course = self.get_course()
+
+        if not self.request.user.is_instructor:
+            raise PermissionDenied("Only instructors can create chapters.")
+
+        if course.instructor != self.request.user:
+            raise PermissionDenied(
+                "You can only create chapters for your own courses."
+            )
+
+        serializer.save(course=course)
+
+
+class ChapterDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ChapterSerializer
+    permission_classes = [
+        IsAuthenticated,
+        IsCourseInstructorOrReadOnlyPublicChapter,
+    ]
+
+    def get_queryset(self):
+        course_id = self.kwargs["course_id"]
+        user = self.request.user
+
+        queryset = Chapter.objects.select_related(
+            "course",
+            "course__instructor",
+        ).filter(course_id=course_id)
+
+        if user.is_instructor:
+            if self.request.method in ["PUT", "PATCH", "DELETE"]:
+                return queryset.filter(course__instructor=user)
+
+            return queryset.filter(
+                Q(course__instructor=user)
+                | Q(is_public=True, course__is_published=True)
+            )
+
+        if user.is_student:
+            enrolled_course_ids = Enrollment.objects.filter(
+                student=user,
+            ).values_list("course_id", flat=True)
+
+            return queryset.filter(
+                course_id__in=enrolled_course_ids,
+                is_public=True,
+                course__is_published=True,
+            )
+
+        return Chapter.objects.none()
