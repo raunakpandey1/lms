@@ -1,7 +1,7 @@
 from django.contrib import admin
 
 # Register your models here.
-from .models import Course
+from .models import Course, Enrollment
 
 
 @admin.register(Course)
@@ -21,4 +21,20 @@ class CourseAdmin(admin.ModelAdmin):
         "title",
         "description",
         "instructor__username",
+    )
+    
+@admin.register(Enrollment)
+class EnrollmentAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "student",
+        "course",
+        "joined_at",
+    )
+    list_filter = (
+        "joined_at",
+    )
+    search_fields = (
+        "student__username",
+        "course__title",
     )
