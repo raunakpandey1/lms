@@ -71,3 +71,39 @@ class Chapter(models.Model):
 
     def __str__(self):
         return f"{self.course.title} - {self.title}"
+    
+    
+class ChapterQuestionSubmission(models.Model):
+    chapter = models.ForeignKey(
+        Chapter,
+        on_delete=models.CASCADE,
+        related_name="question_submissions",
+    )
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="question_submissions",
+    )
+    question_id = models.CharField(max_length=100)
+
+    selected_option_ids = models.JSONField(default=list, blank=True)
+
+    is_correct = models.BooleanField(default=False)
+    earned_points = models.FloatField(default=0)
+    correctness_earned_points = models.FloatField(default=0)
+    participation_earned_points = models.FloatField(default=0)
+
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student", "chapter", "question_id"],
+                name="unique_student_chapter_question_submission",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.student.username} answer for {self.chapter.title} question {self.question_id}"

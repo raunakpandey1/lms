@@ -11,6 +11,7 @@ import { StudentDashboard } from "../pages/StudentDashboard";
 import { Unauthorized } from "../pages/Unauthorized";
 import { NotFound } from "../pages/NotFound";
 import { CourseChapters } from "../pages/CourseChapters";
+import { Test } from "../pages/Test";
 
 export function AppRoutes() {
   return (
@@ -41,6 +42,10 @@ export function AppRoutes() {
         /> 
         </Route>
         
+        <Route
+            path="/test" element={<Test />}
+        /> 
+
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

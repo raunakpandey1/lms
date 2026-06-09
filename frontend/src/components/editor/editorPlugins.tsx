@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import { useMemo, useState } from "react";
 import {
   BlockquotePlugin,
   BoldPlugin,
@@ -18,6 +19,23 @@ import {
   type PlateElementProps,
   type PlateLeafProps,
 } from "platejs/react";
+
+interface McqOptionNode {
+  id?: string;
+  text?: string;
+  is_correct?: boolean;
+}
+
+interface McqQuestionNode {
+  question?: string;
+  options?: McqOptionNode[];
+  questionNumber?: number;
+  totalPoints?: number;
+  correctnessPoints?: number;
+  participationPoints?: number;
+}
+
+const OPTION_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 function ParagraphElement(props: PlateElementProps) {
   return <PlateElement as="p" className="plate-paragraph" {...props} />;
@@ -63,14 +81,18 @@ function LinkElement({
   const href = element.url || "#";
 
   return (
-    <PlateElement element={element} {...props}>
+    <PlateElement
+      element={element}
+      as="span"
+      className="plate-link-wrapper"
+      {...props}
+    >
       <a href={href} target="_blank" rel="noreferrer" className="plate-link">
         {children}
       </a>
     </PlateElement>
   );
 }
-
 function ImageElement({
   children,
   element,
@@ -94,6 +116,182 @@ function ImageElement({
         ) : (
           <p className="muted">Image URL missing.</p>
         )}
+      </div>
+
+      {children}
+    </PlateElement>
+  );
+}
+
+function McqQuestionElement({
+  children,
+  element,
+  ...props
+}: PlateElementProps & {
+  element: McqQuestionNode;
+}) {
+  const [selectedOptionIds, setSelectedOptionIds] = useState<string[]>([]);
+  const [showAnswer, setShowAnswer] = useState(false);
+  const options = Array.isArray(element.options) ? element.options : [];
+  const correctOptions = useMemo(
+    () => options.filter((option) => option.is_correct),
+    [options],
+  );
+  const allowsMultipleAnswers = correctOptions.length > 1;
+  const questionNumber = Number.isFinite(element.questionNumber)
+    ? element.questionNumber
+    : 1;
+  const totalPoints = element.totalPoints ?? 1;
+  const correctnessPoints = element.correctnessPoints ?? 0.5;
+  const participationPoints = element.participationPoints ?? 0.5;
+
+  function getOptionId(option: McqOptionNode, index: number) {
+    return option.id || `${option.text || "option"}-${index}`;
+  }
+
+  function toggleStudentAnswer(optionId: string) {
+    setSelectedOptionIds((currentSelectedOptionIds) => {
+      if (!allowsMultipleAnswers) {
+        return currentSelectedOptionIds.includes(optionId) ? [] : [optionId];
+      }
+
+      return currentSelectedOptionIds.includes(optionId)
+        ? currentSelectedOptionIds.filter((id) => id !== optionId)
+        : [...currentSelectedOptionIds, optionId];
+    });
+  }
+
+  return (
+    <PlateElement
+      element={element}
+      as="div"
+      className="plate-mcq-node"
+      {...props}
+    >
+      <div contentEditable={false}>
+        <div className="plate-mcq-card">
+          <div className="plate-mcq-edit-indicator" aria-hidden="true">
+            ✎
+          </div>
+
+          <section className="plate-mcq-section plate-mcq-question-section">
+            <div className="plate-mcq-section-icon">?</div>
+            <div className="plate-mcq-section-body">
+              <h4>Question {questionNumber}</h4>
+              <p className="plate-mcq-question-text">
+                {element.question || "Untitled question"}
+              </p>
+            </div>
+          </section>
+
+          <section className="plate-mcq-section plate-mcq-student-section">
+            <div className="plate-mcq-section-icon">S</div>
+            <div className="plate-mcq-section-body">
+              <h4>Student Answer</h4>
+              <p className="plate-mcq-help-text">
+                {allowsMultipleAnswers
+                  ? "Please select all correct choices"
+                  : "Please select the correct choice"}
+              </p>
+
+              <div className="plate-mcq-options" role="group" aria-label="Answer choices">
+                {options.length > 0 ? (
+                  options.map((option, index) => {
+                    const optionId = getOptionId(option, index);
+                    const isSelected = selectedOptionIds.includes(optionId);
+                    const isCorrect = Boolean(option.is_correct);
+                    const shouldRevealCorrectness = showAnswer;
+
+                    return (
+                      <button
+                        type="button"
+                        className={`plate-mcq-option${isSelected ? " selected" : ""}${
+                          shouldRevealCorrectness && isCorrect ? " correct" : ""
+                        }${
+                          shouldRevealCorrectness && isSelected && !isCorrect
+                            ? " incorrect"
+                            : ""
+                        }`}
+                        key={optionId}
+                        aria-pressed={isSelected}
+                        onClick={() => toggleStudentAnswer(optionId)}
+                      >
+                        <span className="plate-mcq-option-label">
+                          {OPTION_LABELS[index] || index + 1}.
+                        </span>
+                        <span className="plate-mcq-option-text">
+                          {option.text || "Untitled option"}
+                        </span>
+                      </button>
+                    );
+                  })
+                ) : (
+                  <p className="muted">No answer options added.</p>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {showAnswer && (
+            <section className="plate-mcq-section plate-mcq-answer-section">
+              <div className="plate-mcq-section-icon answer-icon">A</div>
+              <div className="plate-mcq-section-body">
+                <h4>Answer</h4>
+                <div className="plate-mcq-answer-list">
+                  {correctOptions.length > 0 ? (
+                    correctOptions.map((option, index) => {
+                      const originalIndex = options.findIndex(
+                        (candidate) => candidate === option,
+                      );
+                      const labelIndex = originalIndex >= 0 ? originalIndex : index;
+
+                      return (
+                        <div
+                          className="plate-mcq-answer-item"
+                          key={getOptionId(option, labelIndex)}
+                        >
+                          <span>{OPTION_LABELS[labelIndex] || labelIndex + 1}.</span>
+                          <strong>{option.text || "Untitled option"}</strong>
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <p className="muted">No correct answer selected.</p>
+                  )}
+                </div>
+              </div>
+            </section>
+          )}
+
+          <div className="plate-mcq-footer">
+            <div className="plate-mcq-grade-summary">
+              <div>
+                <span>Total Points</span>
+                <strong>{totalPoints}</strong>
+              </div>
+              <div>
+                <span>Correctness</span>
+                <strong>{correctnessPoints}</strong>
+              </div>
+              <div>
+                <span>Participation</span>
+                <strong>{participationPoints}</strong>
+              </div>
+            </div>
+
+            <label className="plate-mcq-toggle">
+              <input
+                type="checkbox"
+                checked={showAnswer}
+                onChange={(event) => setShowAnswer(event.target.checked)}
+              />
+              <span className="plate-mcq-toggle-track" aria-hidden="true">
+                <span className="plate-mcq-toggle-thumb" />
+              </span>
+              {showAnswer ? "Hide Answer" : "Show Answer"}
+            </label>
+          </div>
+        </div>
       </div>
 
       {children}
@@ -127,6 +325,15 @@ export const SimpleCodeBlockPlugin = createPlatePlugin({
   },
 }).withComponent(CodeBlockElement);
 
+export const McqQuestionPlugin = createPlatePlugin({
+  key: "mcq_question",
+  node: {
+    isElement: true,
+    isVoid: true,
+    type: "mcq_question",
+  },
+}).withComponent(McqQuestionElement);
+
 export const lmsPlatePlugins = [
   ParagraphPlugin.withComponent(ParagraphElement),
   BoldPlugin,
@@ -140,4 +347,5 @@ export const lmsPlatePlugins = [
   SimpleCodeBlockPlugin,
   LinkPlugin,
   ImagePlugin,
+  McqQuestionPlugin,
 ];

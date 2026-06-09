@@ -1,4 +1,8 @@
-import { useState, type KeyboardEvent, type MouseEvent } from "react";
+import {
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from "react";
 import type { Value } from "platejs";
 import { PathApi } from "platejs";
 import { Plate, PlateContent, usePlateEditor } from "platejs/react";
@@ -35,6 +39,12 @@ interface ToolbarState {
   marks: InlineMarksState;
 }
 
+interface QuestionOptionDraft {
+  id: string;
+  text: string;
+  is_correct: boolean;
+}
+
 const EMPTY_MARKS: InlineMarksState = {
   bold: false,
   italic: false,
@@ -42,11 +52,41 @@ const EMPTY_MARKS: InlineMarksState = {
   code: false,
 };
 
+const OPTION_LABELS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
 function createEmptyBlock(type: BlockType = "p") {
   return {
     type,
     children: [{ text: "" }],
   };
+}
+
+function createQuestionOption(text = "", is_correct = false): QuestionOptionDraft {
+  return {
+    id: crypto.randomUUID(),
+    text,
+    is_correct,
+  };
+}
+
+function createDefaultQuestionOptions(): QuestionOptionDraft[] {
+  return [createQuestionOption(), createQuestionOption()];
+}
+
+function countMcqQuestions(nodes: unknown[]): number {
+  return nodes.reduce<number>((count, node) => {
+    if (typeof node !== "object" || node === null) {
+      return count;
+    }
+
+    const nodeRecord = node as { type?: string; children?: unknown[] };
+    const currentNodeCount = nodeRecord.type === "mcq_question" ? 1 : 0;
+    const childNodeCount = Array.isArray(nodeRecord.children)
+      ? countMcqQuestions(nodeRecord.children)
+      : 0;
+
+    return count + currentNodeCount + childNodeCount;
+  }, 0);
 }
 
 function ToolbarButton({
@@ -99,6 +139,15 @@ export function PlateRichTextEditor({
     isQuoteActive: false,
     marks: EMPTY_MARKS,
   });
+  const [isInsertMenuOpen, setIsInsertMenuOpen] = useState(false);
+  const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false);
+  const [questionText, setQuestionText] = useState("");
+  const [questionOptions, setQuestionOptions] = useState<QuestionOptionDraft[]>(
+    createDefaultQuestionOptions,
+  );
+  const [totalPoints, setTotalPoints] = useState("1");
+  const [correctnessPoints, setCorrectnessPoints] = useState("0.5");
+  const [participationPoints, setParticipationPoints] = useState("0.5");
 
   function getCurrentBlockType(): BlockType | null {
     const blockEntry = editor.api.block();
@@ -135,7 +184,7 @@ export function PlateRichTextEditor({
           node !== null &&
           "type" in node &&
           node.type === "blockquote",
-      })
+      }),
     );
   }
 
@@ -156,7 +205,7 @@ export function PlateRichTextEditor({
       { type },
       {
         match: (node) => editor.api.isBlock(node),
-      }
+      },
     );
 
     editor.tf.focus();
@@ -226,7 +275,6 @@ export function PlateRichTextEditor({
       editor.tf.underline.toggle();
     }
 
-
     editor.tf.focus();
     window.requestAnimationFrame(refreshToolbarState);
   }
@@ -290,6 +338,123 @@ export function PlateRichTextEditor({
     window.requestAnimationFrame(refreshToolbarState);
   }
 
+  function resetQuestionForm() {
+    setQuestionText("");
+    setQuestionOptions(createDefaultQuestionOptions());
+    setTotalPoints("1");
+    setCorrectnessPoints("0.5");
+    setParticipationPoints("0.5");
+  }
+
+  function openQuestionModal() {
+    setIsInsertMenuOpen(false);
+    resetQuestionForm();
+    setIsQuestionModalOpen(true);
+  }
+
+  function closeQuestionModal() {
+    setIsQuestionModalOpen(false);
+    resetQuestionForm();
+  }
+
+  function updateQuestionOption(
+    optionId: string,
+    field: "text" | "is_correct",
+    value: string | boolean,
+  ) {
+    setQuestionOptions((currentOptions) =>
+      currentOptions.map((option) =>
+        option.id === optionId ? { ...option, [field]: value } : option,
+      ),
+    );
+  }
+
+  function addQuestionOption() {
+    setQuestionOptions((currentOptions) => [
+      ...currentOptions,
+      createQuestionOption(),
+    ]);
+  }
+
+  function removeQuestionOption(optionId: string) {
+    setQuestionOptions((currentOptions) => {
+      if (currentOptions.length <= 2) {
+        return currentOptions;
+      }
+
+      return currentOptions.filter((option) => option.id !== optionId);
+    });
+  }
+
+  function insertQuestion() {
+    const cleanedQuestion = questionText.trim();
+    const cleanedOptions = questionOptions
+      .map((option) => ({
+        ...option,
+        text: option.text.trim(),
+      }))
+      .filter((option) => option.text.length > 0);
+
+    if (!cleanedQuestion) {
+      window.alert("Please write a question.");
+      return;
+    }
+
+    if (cleanedOptions.length < 2) {
+      window.alert("Please add at least two answer options.");
+      return;
+    }
+
+    if (!cleanedOptions.some((option) => option.is_correct)) {
+      window.alert("Please mark at least one option as correct.");
+      return;
+    }
+
+    const parsedTotalPoints = Number(totalPoints);
+    const parsedCorrectnessPoints = Number(correctnessPoints);
+    const parsedParticipationPoints = Number(participationPoints);
+
+    if (
+      !Number.isFinite(parsedTotalPoints) ||
+      !Number.isFinite(parsedCorrectnessPoints) ||
+      !Number.isFinite(parsedParticipationPoints) ||
+      parsedTotalPoints < 0 ||
+      parsedCorrectnessPoints < 0 ||
+      parsedParticipationPoints < 0
+    ) {
+      window.alert("Please enter valid grade point values.");
+      return;
+    }
+
+    if (isCurrentBlock("code_block")) {
+      exitCodeBlock("p");
+    }
+
+    const existingQuestionCount = countMcqQuestions(
+      Array.isArray(editor.children) ? (editor.children as unknown[]) : [],
+    );
+
+    editor.tf.insertNodes({
+      type: "mcq_question",
+      question: cleanedQuestion,
+      questionNumber: existingQuestionCount + 1,
+      totalPoints: parsedTotalPoints,
+      correctnessPoints: parsedCorrectnessPoints,
+      participationPoints: parsedParticipationPoints,
+      options: cleanedOptions.map((option) => ({
+        id: option.id,
+        text: option.text,
+        is_correct: option.is_correct,
+      })),
+      children: [{ text: "" }],
+    });
+    editor.tf.insertNodes(createEmptyBlock("p"));
+    editor.tf.focus();
+
+    closeQuestionModal();
+    window.requestAnimationFrame(refreshToolbarState);
+  }
+
   function handleEditorKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (!isCurrentBlock("code_block")) {
       return;
@@ -336,6 +501,37 @@ export function PlateRichTextEditor({
         }}
       >
         <div className="plate-toolbar">
+          <div className="toolbar-insert-menu">
+            <button
+              type="button"
+              className="insert-menu-trigger"
+              title="Insert content"
+              aria-expanded={isInsertMenuOpen}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                setIsInsertMenuOpen((isOpen) => !isOpen);
+              }}
+            >
+              +
+            </button>
+
+            {isInsertMenuOpen && (
+              <div className="insert-menu-popover">
+                <button
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    openQuestionModal();
+                  }}
+                >
+                  Create question
+                </button>
+              </div>
+            )}
+          </div>
+
+          <span className="toolbar-divider" />
+
           <ToolbarButton
             label="B"
             title="Bold"
@@ -357,7 +553,6 @@ export function PlateRichTextEditor({
             onPress={() => runInlineFormat("underline")}
           />
 
-        
           <span className="toolbar-divider" />
 
           <ToolbarButton
@@ -428,6 +623,152 @@ export function PlateRichTextEditor({
           />
         </div>
       </Plate>
+
+      {isQuestionModalOpen && (
+        <div className="question-modal-backdrop" role="presentation">
+          <div
+            className="question-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="question-modal-title"
+          >
+            <div className="question-modal-form">
+              <div className="question-modal-header">
+                <div>
+                  <p className="question-modal-kicker">Create Question</p>
+                  <h3 id="question-modal-title">Multiple choice question</h3>
+                </div>
+                <button
+                  type="button"
+                  className="question-modal-close"
+                  onClick={closeQuestionModal}
+                  aria-label="Close question modal"
+                >
+                  ×
+                </button>
+              </div>
+
+              <label htmlFor="question-text">Question</label>
+              <textarea
+                id="question-text"
+                value={questionText}
+                onChange={(event) => setQuestionText(event.target.value)}
+                placeholder="Your question content"
+                rows={5}
+              />
+
+              <div className="question-options-header">
+                <span>Answer choices</span>
+                <small>Select all correct answers.</small>
+              </div>
+
+              <div className="question-options-list">
+                {questionOptions.map((option, index) => (
+                  <div className="question-option-row" key={option.id}>
+                    <span className="question-option-index">
+                      {OPTION_LABELS[index] || index + 1}.
+                    </span>
+                    <input
+                      type="text"
+                      value={option.text}
+                      onChange={(event) =>
+                        updateQuestionOption(
+                          option.id,
+                          "text",
+                          event.target.value,
+                        )
+                      }
+                      placeholder="Answer Choice"
+                    />
+                    <label className="question-correct-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={option.is_correct}
+                        onChange={(event) =>
+                          updateQuestionOption(
+                            option.id,
+                            "is_correct",
+                            event.target.checked,
+                          )
+                        }
+                      />
+                      Correct
+                    </label>
+                    <button
+                      type="button"
+                      className="question-remove-option"
+                      onClick={() => removeQuestionOption(option.id)}
+                      disabled={questionOptions.length <= 2}
+                      aria-label={`Remove option ${OPTION_LABELS[index] || index + 1}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                className="question-add-option"
+                onClick={addQuestionOption}
+              >
+                + Add another option
+              </button>
+
+              <div className="question-grade-settings">
+                <h4>Grade settings</h4>
+                <div className="question-grade-grid">
+                  <label>
+                    <span>Total Points</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={totalPoints}
+                      onChange={(event) => setTotalPoints(event.target.value)}
+                    />
+                  </label>
+                  <label>
+                    <span>Correctness</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={correctnessPoints}
+                      onChange={(event) =>
+                        setCorrectnessPoints(event.target.value)
+                      }
+                    />
+                  </label>
+                  <label>
+                    <span>Participation</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.1"
+                      value={participationPoints}
+                      onChange={(event) =>
+                        setParticipationPoints(event.target.value)
+                      }
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="question-modal-actions">
+                <button
+                  type="button"
+                  className="secondary-btn"
+                  onClick={closeQuestionModal}
+                >
+                  Cancel
+                </button>
+                <button type="button" onClick={insertQuestion}>Save Question</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

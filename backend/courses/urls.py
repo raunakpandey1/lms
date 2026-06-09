@@ -5,7 +5,12 @@ from .views import (
     JoinCourseView,
     MyEnrolledCoursesView,
     ChapterDetailView,
-    ChapterListCreateView
+    ChapterListCreateView,
+    ChapterMcqQuestionBulkCreateView,
+    ChapterMcqQuestionDetailView,
+    ChapterMcqQuestionListCreateView,
+    ChapterMcqQuestionSubmissionListView,
+    ChapterMcqQuestionSubmitView,
 )
 
 # A ViewSet contains multiple actions so we map http methods manualy
@@ -33,6 +38,31 @@ urlpatterns = [
         "<int:course_id>/chapters/",
         ChapterListCreateView.as_view(),
         name="chapter-list-create",
+    ),
+    path(
+        "<int:course_id>/chapters/<int:chapter_id>/questions/",
+        ChapterMcqQuestionListCreateView.as_view(),
+        name="chapter-question-list-create",
+    ),
+    path(
+        "<int:course_id>/chapters/<int:chapter_id>/questions/bulk/",
+        ChapterMcqQuestionBulkCreateView.as_view(),
+        name="chapter-question-bulk-create",
+    ),
+    path(
+        "<int:course_id>/chapters/<int:chapter_id>/questions/<str:question_id>/",
+        ChapterMcqQuestionDetailView.as_view(),
+        name="chapter-question-detail",
+    ),
+    path(
+        "<int:course_id>/chapters/<int:chapter_id>/questions/<str:question_id>/submit/",
+        ChapterMcqQuestionSubmitView.as_view(),
+        name="chapter-question-submit",
+    ),
+    path(
+        "<int:course_id>/chapters/<int:chapter_id>/questions/<str:question_id>/submissions/",
+        ChapterMcqQuestionSubmissionListView.as_view(),
+        name="chapter-question-submissions",
     ),
     path(
         "<int:course_id>/chapters/<int:pk>/",
